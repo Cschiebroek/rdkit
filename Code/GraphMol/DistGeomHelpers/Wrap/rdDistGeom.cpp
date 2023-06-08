@@ -51,9 +51,9 @@ int EmbedMolecule(ROMol &mol, unsigned int maxAttempts, int seed,
   bool onlyHeavyAtomsForRMS = false;
   DGeomHelpers::EmbedParameters params(
       maxAttempts, numThreads, seed, clearConfs, useRandomCoords, boxSizeMult,
-      randNegEig, numZeroFail, pMapPtr, forceTol, ignoreSmoothingFailures,
+      randNegEig, numZeroFail, pMapPtr, useTemplate,flexibility,forceTol, ignoreSmoothingFailures,
       enforceChirality, useExpTorsionAnglePrefs, useBasicKnowledge, verbose,
-      basinThresh, pruneRmsThresh, onlyHeavyAtomsForRMS, ETversion, nullptr,
+      basinThresh, pruneRmsThresh,onlyHeavyAtomsForRMS, ETversion, nullptr,
       true, useSmallRingTorsions, useMacrocycleTorsions);
 
   int res;
@@ -97,9 +97,9 @@ INT_VECT EmbedMultipleConfs(
   bool onlyHeavyAtomsForRMS = false;
   DGeomHelpers::EmbedParameters params(
       maxAttempts, numThreads, seed, clearConfs, useRandomCoords, boxSizeMult,
-      randNegEig, numZeroFail, pMapPtr, forceTol, ignoreSmoothingFailures,
+      randNegEig, numZeroFail, pMapPtr, useTemplate,flexibility,forceTol, ignoreSmoothingFailures,
       enforceChirality, useExpTorsionAnglePrefs, useBasicKnowledge, verbose,
-      basinThresh, pruneRmsThresh, onlyHeavyAtomsForRMS, ETversion, nullptr,
+      basinThresh, pruneRmsThresh,onlyHeavyAtomsForRMS, ETversion, nullptr,
       true, useSmallRingTorsions, useMacrocycleTorsions);
 
   INT_VECT res;
@@ -148,11 +148,15 @@ DGeomHelpers::EmbedParameters *getETKDG() {  // ET version 1
 DGeomHelpers::EmbedParameters *getETKDGv2() {  // ET version 2
   return new DGeomHelpers::EmbedParameters(DGeomHelpers::ETKDGv2);
 }
-DGeomHelpers::EmbedParameters *
-getETKDGv3() {  //! Parameters corresponding improved ETKDG by Wang, Witek,
+DGeomHelpers::EmbedParameters *getETKDGv3() {  //! Parameters corresponding improved ETKDG by Wang, Witek,
                 //! Landrum and Riniker (10.1021/acs.jcim.0c00025) - the
                 //! macrocycle part
   return new DGeomHelpers::EmbedParameters(DGeomHelpers::ETKDGv3);
+}
+DGeomHelpers::EmbedParameters *getETKDGv4() {  //! Parameters corresponding improved ETKDG by Wang, Witek,
+                //! Landrum and Riniker (10.1021/acs.jcim.0c00025) - the
+                //! macrocycle part
+  return new DGeomHelpers::EmbedParameters(DGeomHelpers::ETKDGv4);
 }
 DGeomHelpers::EmbedParameters *
 getsrETKDGv3() {  //! Parameters corresponding improved ETKDG by Wang, Witek,
@@ -329,10 +333,11 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
        python::arg("randomSeed") = -1, python::arg("clearConfs") = true,
        python::arg("useRandomCoords") = false, python::arg("boxSizeMult") = 2.0,
        python::arg("randNegEig") = true, python::arg("numZeroFail") = 1,
-       python::arg("coordMap") = python::dict(), python::arg("forceTol") = 1e-3,
-       python::arg("ignoreSmoothingFailures") = false,
+       python::arg("coordMap") = python::dict(), 
        python::arg("useTemplate") = false,
        python::arg("flexibility") = 0.0,
+       python::arg("forceTol") = 1e-3,
+       python::arg("ignoreSmoothingFailures") = false,
        python::arg("enforceChirality") = true,
        python::arg("useExpTorsionAnglePrefs") = true,
        python::arg("useBasicKnowledge") = true,
@@ -381,7 +386,7 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
                conformation.\n\
   - useTemplate : scan for rigid fragments and use template \n\
                 to set distance bounds if found\n\
-  - flexibility : set the flexibility of coordMap or template \n\             
+  - flexibility : set the flexibility of coordMap or template \n\
   - forceTol : tolerance to be used during the force-field minimization with \n\
                the distance geometry force field.\n\
   - ignoreSmoothingFailures : try to embed the molecule even if triangle smoothing\n\
@@ -536,7 +541,11 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
           "trackFailures", &RDKit::DGeomHelpers::EmbedParameters::trackFailures,
           "keep track of which checks during the embedding process fail")
       .def("GetFailureCounts", &RDKit::getFailureCounts,
-           "returns the counts of eacu");
+           "returns the counts of eacu")
+      .def_readwrite(
+          "useTemplate",
+          &RDKit::DGeomHelpers::EmbedParameters::useTemplate,
+          "use template for caged structures");
   docString =
       "Use distance geometry to obtain multiple sets of \n\
  coordinates for a molecule\n\
@@ -581,6 +590,10 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
   python::def("ETKDGv3", RDKit::getETKDGv3,
               "Returns an EmbedParameters object for the ETKDG method - "
               "version 3 (macrocycles).",
+              python::return_value_policy<python::manage_new_object>());
+  python::def("ETKDGv4", RDKit::getETKDGv4,
+              "Returns an EmbedParameters object for the ETKDG method - "
+              "version 4 (cages).",
               python::return_value_policy<python::manage_new_object>());
   python::def("ETDG", RDKit::getETDG,
               "Returns an EmbedParameters object for the ETDG method.",

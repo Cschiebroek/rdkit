@@ -1157,28 +1157,52 @@ std::unique_ptr<RDKit::ROMol> findMatchingMolecule(const std::string& sdf_file, 
     return nullptr; // Return nullptr if no matching molecule is found
 }
 
-std::map<int, RDGeom::Point3D> coordmapFromTemplate(const RDKit::ROMol& input_mol){
-    std::string sdf_file = "/localhome/cschiebroek/cpp_testing/templates.sdf";
+// std::map<int, RDGeom::Point3D> coordmapFromTemplate(const RDKit::ROMol& input_mol){
+//     std::string rdbase = getenv("RDBASE");
+//     std::string sdf_file =
+//       rdbase + "/Data/CSD_templates/templates.sdf";
+//     std::unique_ptr<RDKit::ROMol> matching_mol = findMatchingMolecule(sdf_file, input_mol);
+//     const RDKit::Conformer& conformer_template = matching_mol->getConformer();
+//     std::map<int, RDGeom::Point3D> coordMap;
+
+//     if (matching_mol) {
+//         std::cout << "Matching molecule found!" << std::endl;
+//         std::vector<std::vector<std::pair<int, int>>> mol_match = SubstructMatch(input_mol, *matching_mol);
+
+//         for (const auto& match : mol_match) {
+//             for (const auto& element : match) {
+//                 int molIndex = element.second;
+//                 int templateIndex = element.first;
+//                 const RDGeom::Point3D& coordinates = conformer_template.getAtomPos(templateIndex);
+//                 coordMap[molIndex] = coordinates;
+//             }
+//         }
+//     } else {
+//         std::cout << "No matching molecule found." << std::endl;
+//     }
+    
+//     return coordMap;
+// }
+std::map<int, RDGeom::Point3D> coordmapFromTemplate(const RDKit::ROMol& input_mol) {
+    std::string rdbase = getenv("RDBASE");
+    std::string sdf_file = rdbase + "/Data/CSD_templates/templates.sdf";
     std::unique_ptr<RDKit::ROMol> matching_mol = findMatchingMolecule(sdf_file, input_mol);
-    const RDKit::Conformer& conformer_template = matching_mol->getConformer();
     std::map<int, RDGeom::Point3D> coordMap;
 
     if (matching_mol) {
-        std::cout << "Matching molecule found!" << std::endl;
         std::vector<std::vector<std::pair<int, int>>> mol_match = SubstructMatch(input_mol, *matching_mol);
 
         for (const auto& match : mol_match) {
             for (const auto& element : match) {
                 int molIndex = element.second;
                 int templateIndex = element.first;
+                const RDKit::Conformer& conformer_template = matching_mol->getConformer();
                 const RDGeom::Point3D& coordinates = conformer_template.getAtomPos(templateIndex);
                 coordMap[molIndex] = coordinates;
             }
         }
-    } else {
-        std::cout << "No matching molecule found." << std::endl;
     }
-    
+
     return coordMap;
 }
 
@@ -1467,17 +1491,17 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     fragMapping.resize(mol.getNumAtoms());
     std::fill(fragMapping.begin(), fragMapping.end(), 0);
   }
+
   const std::map<int, RDGeom::Point3D>* coordMap = nullptr;
 
   if (params.coordMap) {
-    coordMap = params.coordMap;
+      coordMap = params.coordMap;
+  } else if (params.useTemplate) {
+      std::unique_ptr<RDKit::ROMol> input_mol_ptr = std::make_unique<RDKit::ROMol>(mol);
+      std::map<int, RDGeom::Point3D> templateCoordMap = RDKit::DGeomHelpers::EmbeddingOps::coordmapFromTemplate(*input_mol_ptr);
+      coordMap = new std::map<int, RDGeom::Point3D>(templateCoordMap);
   }
 
-  if (params.useTemplate) {
-    std::unique_ptr<RDKit::ROMol> input_mol_ptr = std::make_unique<RDKit::ROMol>(mol);
-    std::map<int, RDGeom::Point3D> templateCoordMap = RDKit::DGeomHelpers::EmbeddingOps::coordmapFromTemplate(*input_mol_ptr);
-    coordMap = &templateCoordMap;
-  }
 
 
   if (molFrags.size() > 1 && params.boundsMat != nullptr) {
@@ -1583,6 +1607,9 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
       }
     }
   }
+    if (coordMap && !params.coordMap && params.useTemplate) {
+    delete coordMap;
+}
 }
 
 }  // end of namespace DGeomHelpers
