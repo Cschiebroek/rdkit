@@ -36,6 +36,9 @@
 #include <RDGeneral/RDThreads.h>
 #include <typeinfo>
 
+#include <GraphMol/FileParsers/MolSupplier.h>
+
+
 #ifdef RDK_BUILD_THREADSAFE_SSS
 #include <future>
 #include <mutex>
@@ -95,6 +98,8 @@ const EmbedParameters KDG(0,        // maxIterations
                           true,     // randNegEig
                           1,        // numZeroFail
                           nullptr,  // coordMap
+                          false,   // useTemplate
+                          0.0,   // flexibility
                           1e-3,     // optimizerForceTol
                           false,    // ignoreSmoothingFailures
                           true,     // enforceChirality
@@ -113,7 +118,6 @@ const EmbedParameters KDG(0,        // maxIterations
                           nullptr,  // CPCI
                           nullptr   // callback
 );
-
 //! Parameters corresponding to Sereina Riniker's ETDG approach
 const EmbedParameters ETDG(0,        // maxIterations
                            1,        // numThreads
@@ -124,6 +128,8 @@ const EmbedParameters ETDG(0,        // maxIterations
                            true,     // randNegEig
                            1,        // numZeroFail
                            nullptr,  // coordMap
+                           false,   // useTemplate
+                           0.0,   // flexibility
                            1e-3,     // optimizerForceTol
                            false,    // ignoreSmoothingFailures
                            false,    // enforceChirality
@@ -140,7 +146,7 @@ const EmbedParameters ETDG(0,        // maxIterations
                            false,    // useMacrocycleTorsions
                            false,    // useMacrocycle14config
                            nullptr,  // CPCI
-                           nullptr   // callback
+                           nullptr  // callback
 );
 //! Parameters corresponding to Sereina Riniker's ETKDG approach
 const EmbedParameters ETKDG(0,        // maxIterations
@@ -152,6 +158,8 @@ const EmbedParameters ETKDG(0,        // maxIterations
                             true,     // randNegEig
                             1,        // numZeroFail
                             nullptr,  // coordMap
+                            false,   // useTemplate
+                            0.0,   // flexibility
                             1e-3,     // optimizerForceTol
                             false,    // ignoreSmoothingFailures
                             true,     // enforceChirality
@@ -169,6 +177,7 @@ const EmbedParameters ETKDG(0,        // maxIterations
                             false,    // useMacrocycle14config
                             nullptr,  // CPCI
                             nullptr   // callback
+
 );
 
 //! Parameters corresponding to Sereina Riniker's ETKDG approach - version 2
@@ -181,6 +190,8 @@ const EmbedParameters ETKDGv2(0,        // maxIterations
                               true,     // randNegEig
                               1,        // numZeroFail
                               nullptr,  // coordMap
+                              false,   // useTemplate
+                              0.0,   // flexibility
                               1e-3,     // optimizerForceTol
                               false,    // ignoreSmoothingFailures
                               true,     // enforceChirality
@@ -198,6 +209,7 @@ const EmbedParameters ETKDGv2(0,        // maxIterations
                               false,    // useMacrocycle14config
                               nullptr,  // CPCI
                               nullptr   // callback
+
 );
 
 //! Parameters corresponding improved ETKDG by Wang, Witek, Landrum and Riniker
@@ -211,6 +223,8 @@ const EmbedParameters ETKDGv3(0,        // maxIterations
                               true,     // randNegEig
                               1,        // numZeroFail
                               nullptr,  // coordMap
+                              false,   // useTemplate
+                              0.0,   // flexibility
                               1e-3,     // optimizerForceTol
                               false,    // ignoreSmoothingFailures
                               true,     // enforceChirality
@@ -241,6 +255,8 @@ const EmbedParameters srETKDGv3(0,        // maxIterations
                                 true,     // randNegEig
                                 1,        // numZeroFail
                                 nullptr,  // coordMap
+                                false,   // useTemplate
+                                0.0,   // flexibility
                                 1e-3,     // optimizerForceTol
                                 false,    // ignoreSmoothingFailures
                                 true,     // enforceChirality
@@ -258,6 +274,38 @@ const EmbedParameters srETKDGv3(0,        // maxIterations
                                 false,    // useMacrocycle14config
                                 nullptr,  // CPCI
                                 nullptr   // callback
+);
+
+
+//! Using template
+const EmbedParameters ETKDGv4(0,        // maxIterations
+                              1,        // numThreads
+                              -1,       // randomSeed
+                              true,     // clearConfs
+                              false,    // useRandomCoords
+                              2.0,      // boxSizeMult
+                              true,     // randNegEig
+                              1,        // numZeroFail
+                              nullptr,  // coordMap
+                              false,   // useTemplate
+                              0.0,   // flexibility
+                              1e-3,     // optimizerForceTol
+                              false,    // ignoreSmoothingFailures
+                              true,     // enforceChirality
+                              true,     // useExpTorsionAnglePrefs
+                              true,     // useBasicKnowledge
+                              false,    // verbose
+                              5.0,      // basinThresh
+                              -1.0,     // pruneRmsThresh
+                              true,     // onlyHeavyAtomsForRMS
+                              2,        // ETversion
+                              nullptr,  // boundsMat
+                              true,     // embedFragmentsSeparately
+                              false,    // useSmallRingTorsions
+                              true,     // useMacrocycleTorsions
+                              true,     // useMacrocycle14config
+                              nullptr,  // CPCI
+                              nullptr   // callback
 );
 
 namespace detail {
@@ -1095,6 +1143,44 @@ void initETKDG(ROMol *mol, const EmbedParameters &params,
   }
   etkdgDetails.boundsMatForceScaling = params.boundsMatForceScaling;
 }
+std::unique_ptr<RDKit::ROMol> findMatchingMolecule(const std::string& sdf_file, const RDKit::ROMol& input_mol) {
+    bool takeOwnership = true;
+    RDKit::SDMolSupplier mol_supplier(sdf_file, takeOwnership);
+
+    while (!mol_supplier.atEnd()) {
+        std::unique_ptr<RDKit::ROMol> mol(mol_supplier.next());
+        if (!RDKit::SubstructMatch(input_mol, *mol).empty()) {
+            return mol;
+        }
+    }
+
+    return nullptr; // Return nullptr if no matching molecule is found
+}
+
+std::map<int, RDGeom::Point3D> coordmapFromTemplate(const RDKit::ROMol& input_mol){
+    std::string sdf_file = "/localhome/cschiebroek/cpp_testing/templates.sdf";
+    std::unique_ptr<RDKit::ROMol> matching_mol = findMatchingMolecule(sdf_file, input_mol);
+    const RDKit::Conformer& conformer_template = matching_mol->getConformer();
+    std::map<int, RDGeom::Point3D> coordMap;
+
+    if (matching_mol) {
+        std::cout << "Matching molecule found!" << std::endl;
+        std::vector<std::vector<std::pair<int, int>>> mol_match = SubstructMatch(input_mol, *matching_mol);
+
+        for (const auto& match : mol_match) {
+            for (const auto& element : match) {
+                int molIndex = element.second;
+                int templateIndex = element.first;
+                const RDGeom::Point3D& coordinates = conformer_template.getAtomPos(templateIndex);
+                coordMap[molIndex] = coordinates;
+            }
+        }
+    } else {
+        std::cout << "No matching molecule found." << std::endl;
+    }
+    
+    return coordMap;
+}
 
 bool setupInitialBoundsMatrix(
     ROMol *mol, DistGeom::BoundsMatPtr mmat,
@@ -1112,6 +1198,16 @@ bool setupInitialBoundsMatrix(
                    params.forceTransAmides);
   }
   double tol = 0.0;
+  if (params.useTemplate && params.coordMap != nullptr) {
+    BOOST_LOG(rdWarningLog)
+        << "Can't use both a template and a coordinate map, ignoring the template."
+        << std::endl;
+  }
+  if (params.useTemplate  && params.coordMap == nullptr) {
+    std::unique_ptr<RDKit::ROMol> input_mol_ptr(mol);
+    std::map<int, RDGeom::Point3D> coordMap = coordmapFromTemplate(*input_mol_ptr);
+  }
+
   if (coordMap) {
     adjustBoundsMatFromCoordMap(mmat, nAtoms, coordMap);
     tol = 0.05;
@@ -1371,14 +1467,18 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     fragMapping.resize(mol.getNumAtoms());
     std::fill(fragMapping.begin(), fragMapping.end(), 0);
   }
-  const std::map<int, RDGeom::Point3D> *coordMap = params.coordMap;
-  if (molFrags.size() > 1 && coordMap) {
-    BOOST_LOG(rdWarningLog)
-        << "Constrained conformer generation (via the coordMap argument) "
-           "does not work with molecules that have multiple fragments."
-        << std::endl;
-    coordMap = nullptr;
+  const std::map<int, RDGeom::Point3D>* coordMap = nullptr;
+
+  if (params.coordMap) {
+    coordMap = params.coordMap;
   }
+
+  if (params.useTemplate) {
+    std::unique_ptr<RDKit::ROMol> input_mol_ptr = std::make_unique<RDKit::ROMol>(mol);
+    std::map<int, RDGeom::Point3D> templateCoordMap = RDKit::DGeomHelpers::EmbeddingOps::coordmapFromTemplate(*input_mol_ptr);
+    coordMap = &templateCoordMap;
+  }
+
 
   if (molFrags.size() > 1 && params.boundsMat != nullptr) {
     BOOST_LOG(rdWarningLog)

@@ -27,7 +27,7 @@ namespace RDKit {
 int EmbedMolecule(ROMol &mol, unsigned int maxAttempts, int seed,
                   bool clearConfs, bool useRandomCoords, double boxSizeMult,
                   bool randNegEig, unsigned int numZeroFail,
-                  python::dict &coordMap, double forceTol,
+                  python::dict &coordMap, double forceTol, bool useTemplate, double flexibility,
                   bool ignoreSmoothingFailures, bool enforceChirality,
                   bool useExpTorsionAnglePrefs, bool useBasicKnowledge,
                   bool printExpTorsionAngles, bool useSmallRingTorsions,
@@ -76,7 +76,7 @@ int EmbedMolecule2(ROMol &mol, DGeomHelpers::EmbedParameters &params) {
 INT_VECT EmbedMultipleConfs(
     ROMol &mol, unsigned int numConfs, unsigned int maxAttempts, int seed,
     bool clearConfs, bool useRandomCoords, double boxSizeMult, bool randNegEig,
-    unsigned int numZeroFail, double pruneRmsThresh, python::dict &coordMap,
+    unsigned int numZeroFail, double pruneRmsThresh, python::dict &coordMap,bool useTemplate, double flexibility,
     double forceTol, bool ignoreSmoothingFailures, bool enforceChirality,
     int numThreads, bool useExpTorsionAnglePrefs, bool useBasicKnowledge,
     bool printExpTorsionAngles, bool useSmallRingTorsions,
@@ -308,6 +308,9 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
     - coordMap : a dictionary mapping atom IDs->coordinates. Use this to \n\
                  require some atoms to have fixed coordinates in the resulting \n\
                  conformation.\n\
+    - useTemplate : scan for rigid fragments and use template \n\
+                    to set distance bounds if found\n\
+    - flexibility : set the flexibility of coordMap or template \n\
     - forceTol : tolerance to be used during the force-field minimization with \n\
                  the distance geometry force field.\n\
     - ignoreSmoothingFailures : try to embed the molecule even if triangle smoothing\n\
@@ -328,6 +331,8 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
        python::arg("randNegEig") = true, python::arg("numZeroFail") = 1,
        python::arg("coordMap") = python::dict(), python::arg("forceTol") = 1e-3,
        python::arg("ignoreSmoothingFailures") = false,
+       python::arg("useTemplate") = false,
+       python::arg("flexibility") = 0.0,
        python::arg("enforceChirality") = true,
        python::arg("useExpTorsionAnglePrefs") = true,
        python::arg("useBasicKnowledge") = true,
@@ -374,6 +379,9 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
   - coordMap : a dictionary mapping atom IDs->coordinates. Use this to \n\
                require some atoms to have fixed coordinates in the resulting \n\
                conformation.\n\
+  - useTemplate : scan for rigid fragments and use template \n\
+                to set distance bounds if found\n\
+  - flexibility : set the flexibility of coordMap or template \n\             
   - forceTol : tolerance to be used during the force-field minimization with \n\
                the distance geometry force field.\n\
   - ignoreSmoothingFailures : try to embed the molecule even if triangle smoothing\n\
@@ -396,6 +404,8 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
        python::arg("boxSizeMult") = 2.0, python::arg("randNegEig") = true,
        python::arg("numZeroFail") = 1, python::arg("pruneRmsThresh") = -1.0,
        python::arg("coordMap") = python::dict(), python::arg("forceTol") = 1e-3,
+       python::arg("useTemplate") = false,
+       python::arg("flexibility") = 0.0,
        python::arg("ignoreSmoothingFailures") = false,
        python::arg("enforceChirality") = true, python::arg("numThreads") = 1,
        python::arg("useExpTorsionAnglePrefs") = true,
