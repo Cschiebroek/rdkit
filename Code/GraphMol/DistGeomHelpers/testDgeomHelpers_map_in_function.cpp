@@ -63,7 +63,7 @@ void test1() {
     std::string smi = *token;
     RWMol *m = SmilesToMol(smi, 0, 1);
     int cid = DGeomHelpers::EmbedMolecule(*m, 10, 1, true, false, 2, true, 1,
-                                          nullptr, 1e-2);
+                                          nullptr,false,0.0,1e-2);
     CHECK_INVARIANT(cid >= 0, "");
     ROMol *m2 = sdsup.next();
     // BOOST_LOG(rdInfoLog) << ">>> " << smi << std::endl;
@@ -589,7 +589,7 @@ void testMultipleConfsExpTors() {
   std::string smi = "CC(C)(C)c(cc1)ccc1c(cc23)n[n]3C(=O)/C(=C\\N2)C(=O)OCC";
   ROMol *m = SmilesToMol(smi, 0, 1);
   INT_VECT cids = DGeomHelpers::EmbedMultipleConfs(
-      *m, 10, 30, 100, true, false, -1, true, 1, -1.0, nullptr, 1e-3, false,
+      *m, 10, 30, 100, true, false, -1, true, 1, -1.0, nullptr, false, 0.0, 1e-3, false,
       true, false, false, false, 5.0, false, 1, false, false);
 
   INT_VECT_CI ci;
@@ -914,7 +914,7 @@ void testRandomCoords() {
     delete m;
     m = m2;
     int cid = DGeomHelpers::EmbedMolecule(*m, 10, 1, true, true, 2, true, 1,
-                                          nullptr, 1e-2);
+                                          nullptr, false, 0.0,1e-2);
     CHECK_INVARIANT(cid >= 0, "");
     // writer.write(*m);
     // writer.flush();
@@ -1002,7 +1002,7 @@ void testConstrainedEmbedding() {
 
 #if 1
     int cid = DGeomHelpers::EmbedMolecule(*test, 30, 22, true, false, 2., true,
-                                          1, &coords);
+                                          1, &coords,false, 0.0,1e-2);
     TEST_ASSERT(cid > -1);
 
     MatchVectType alignMap;
@@ -1028,7 +1028,7 @@ void testConstrainedEmbedding() {
     coords[7] = ref->getConformer().getAtomPos(3);
     coords[8] = ref->getConformer().getAtomPos(4);
     int cid = DGeomHelpers::EmbedMolecule(*test, 30, 22, true, false, 2., true,
-                                          1, &coords);
+                                          1, &coords,false, 0.0,1e-2);
     TEST_ASSERT(cid > -1);
 
     MatchVectType alignMap;
@@ -1246,7 +1246,7 @@ void testIssue3483968() {
     TEST_ASSERT(m);
 
     int cid = DGeomHelpers::EmbedMolecule(*m, 0, -1, true, false, 2.0, true, 1,
-                                          nullptr, 1e-3, true);
+                                          nullptr, false,0.0,1e-3, true);
     TEST_ASSERT(cid >= 0);
     std::vector<int> cids = DGeomHelpers::EmbedMultipleConfs(
         *m, 10, 30, 1, true, false, 2.0, true, 1, -1.0, nullptr, 1e-3, true);
