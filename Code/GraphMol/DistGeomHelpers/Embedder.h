@@ -79,6 +79,7 @@ enum EmbedFailureCauses {
                  points in \c coordMap. Because the embedding produces a
                  molecule in an arbitrary reference frame, an alignment step
                  is required to actually reproduce the provided coordinates.
+  useTemplate    if true, the distance bounds matrix from the template molecule
   optimizerForceTol set the tolerance on forces in the DGeom optimizer
                     (this shouldn't normally be altered in client code).
   ignoreSmoothingFailures  try to embed the molecule even if triangle bounds
@@ -112,8 +113,6 @@ enum EmbedFailureCauses {
   trackFailures    keep track of which checks during the embedding process fail
   failures         if trackFailures is true, this is used to track the number
                    of times each embedding check fails
-  useTemplate  Set to true to look for a template molecule for embedding, and use this as coordMap if found.
-  flexibility  Thightness of bounds set by using template/coordMap.
 */
 struct RDKIT_DISTGEOMHELPERS_EXPORT EmbedParameters {
   unsigned int maxIterations{0};
@@ -125,8 +124,6 @@ struct RDKIT_DISTGEOMHELPERS_EXPORT EmbedParameters {
   bool randNegEig{true};
   unsigned int numZeroFail{1};
   const std::map<int, RDGeom::Point3D> *coordMap{nullptr};
-  bool useTemplate;   // New parameter: whether to use a template
-  double flexibility; // New parameter: flexibility value
   double optimizerForceTol{1e-3};
   bool ignoreSmoothingFailures{false};
   bool enforceChirality{true};
@@ -150,53 +147,48 @@ struct RDKIT_DISTGEOMHELPERS_EXPORT EmbedParameters {
   bool trackFailures{false};
   std::vector<unsigned int> failures;
 
-
-
- EmbedParameters() : boundsMat(nullptr), CPCI(nullptr), callback(nullptr) {}
-
-EmbedParameters(
-    unsigned int maxIterations, int numThreads, int randomSeed,
-    bool clearConfs, bool useRandomCoords, double boxSizeMult,
-    bool randNegEig, unsigned int numZeroFail,
-    const std::map<int, RDGeom::Point3D> *coordMap,
-    bool useTemplate, double flexibility,double optimizerForceTol,
-    bool ignoreSmoothingFailures, bool enforceChirality,
-    bool useExpTorsionAnglePrefs, bool useBasicKnowledge, bool verbose,
-    double basinThresh, double pruneRmsThresh, bool onlyHeavyAtomsForRMS,
-    unsigned int ETversion = 1,
-    const DistGeom::BoundsMatrix *boundsMat = nullptr,
-    bool embedFragmentsSeparately = true, bool useSmallRingTorsions = false,
-    bool useMacrocycleTorsions = false, bool useMacrocycle14config = false,
-    std::shared_ptr<std::map<std::pair<unsigned int, unsigned int>, double>> CPCI = nullptr,
-    void (*callback)(unsigned int) = nullptr)
-    : maxIterations(maxIterations),
-      numThreads(numThreads),
-      randomSeed(randomSeed),
-      clearConfs(clearConfs),
-      useRandomCoords(useRandomCoords),
-      boxSizeMult(boxSizeMult),
-      randNegEig(randNegEig),
-      numZeroFail(numZeroFail),
-      coordMap(coordMap),
-      useTemplate(useTemplate),
-      flexibility(flexibility),
-      optimizerForceTol(optimizerForceTol),
-      ignoreSmoothingFailures(ignoreSmoothingFailures),
-      enforceChirality(enforceChirality),
-      useExpTorsionAnglePrefs(useExpTorsionAnglePrefs),
-      useBasicKnowledge(useBasicKnowledge),
-      verbose(verbose),
-      basinThresh(basinThresh),
-      pruneRmsThresh(pruneRmsThresh),
-      onlyHeavyAtomsForRMS(onlyHeavyAtomsForRMS),
-      ETversion(ETversion),
-      boundsMat(boundsMat),
-      embedFragmentsSeparately(embedFragmentsSeparately),
-      useSmallRingTorsions(useSmallRingTorsions),
-      useMacrocycleTorsions(useMacrocycleTorsions),
-      useMacrocycle14config(useMacrocycle14config),
-      CPCI(std::move(CPCI)),
-      callback(callback) {}
+  EmbedParameters() : boundsMat(nullptr), CPCI(nullptr), callback(nullptr) {}
+  EmbedParameters(
+      unsigned int maxIterations, int numThreads, int randomSeed,
+      bool clearConfs, bool useRandomCoords, double boxSizeMult,
+      bool randNegEig, unsigned int numZeroFail,
+      const std::map<int, RDGeom::Point3D> *coordMap,double optimizerForceTol,
+      bool ignoreSmoothingFailures, bool enforceChirality,
+      bool useExpTorsionAnglePrefs, bool useBasicKnowledge, bool verbose,
+      double basinThresh, double pruneRmsThresh, bool onlyHeavyAtomsForRMS,
+      unsigned int ETversion = 1,
+      const DistGeom::BoundsMatrix *boundsMat = nullptr,
+      bool embedFragmentsSeparately = true, bool useSmallRingTorsions = false,
+      bool useMacrocycleTorsions = false, bool useMacrocycle14config = false,
+      std::shared_ptr<std::map<std::pair<unsigned int, unsigned int>, double>>
+          CPCI = nullptr,
+      void (*callback)(unsigned int) = nullptr)
+      : maxIterations(maxIterations),
+        numThreads(numThreads),
+        randomSeed(randomSeed),
+        clearConfs(clearConfs),
+        useRandomCoords(useRandomCoords),
+        boxSizeMult(boxSizeMult),
+        randNegEig(randNegEig),
+        numZeroFail(numZeroFail),
+        coordMap(coordMap),
+        optimizerForceTol(optimizerForceTol),
+        ignoreSmoothingFailures(ignoreSmoothingFailures),
+        enforceChirality(enforceChirality),
+        useExpTorsionAnglePrefs(useExpTorsionAnglePrefs),
+        useBasicKnowledge(useBasicKnowledge),
+        verbose(verbose),
+        basinThresh(basinThresh),
+        pruneRmsThresh(pruneRmsThresh),
+        onlyHeavyAtomsForRMS(onlyHeavyAtomsForRMS),
+        ETversion(ETversion),
+        boundsMat(boundsMat),
+        embedFragmentsSeparately(embedFragmentsSeparately),
+        useSmallRingTorsions(useSmallRingTorsions),
+        useMacrocycleTorsions(useMacrocycleTorsions),
+        useMacrocycle14config(useMacrocycle14config),
+        CPCI(std::move(CPCI)),
+        callback(callback) {}
 };
 
 //! update parameters from a JSON string
@@ -276,6 +268,7 @@ inline int EmbedMolecule(ROMol &mol, EmbedParameters &params) {
                    points in \c coordMap. Because the embedding produces a
                    molecule in an arbitrary reference frame, an alignment step
                    is required to actually reproduce the provided coordinates.
+  \param useTemplate tries to find  constrained fragments and uses this as template for bounds matrix adjustments.
   \param optimizerForceTol set the tolerance on forces in the distgeom optimizer
                            (this shouldn't normally be altered in client code).
   \param ignoreSmoothingFailures  try to embed the molecule even if triangle
@@ -297,8 +290,6 @@ inline int EmbedMolecule(ROMol &mol, EmbedParameters &params) {
   conformer sampling \param useMacrocycle14config  If 1-4 distances bound
   heuristics for macrocycles is used \return ID of the conformations added to
   the molecule, -1 if the emdedding failed
-  \param useTemplate  use a template molecule to set up the bounds matrix for constrained molecules
-  \param flexibility  set difference between bounds when using template
 */
 inline int EmbedMolecule(
     ROMol &mol, unsigned int maxIterations = 0, int seed = -1,
@@ -306,7 +297,6 @@ inline int EmbedMolecule(
     double boxSizeMult = 2.0, bool randNegEig = true,
     unsigned int numZeroFail = 1,
     const std::map<int, RDGeom::Point3D> *coordMap = nullptr,
-    bool useTemplate = false, double flexibility = 0.0,
     double optimizerForceTol = 1e-3, bool ignoreSmoothingFailures = false,
     bool enforceChirality = true, bool useExpTorsionAnglePrefs = false,
     bool useBasicKnowledge = false, bool verbose = false,
@@ -315,7 +305,7 @@ inline int EmbedMolecule(
     bool useMacrocycleTorsions = false, bool useMacrocycle14config = false) {
   EmbedParameters params(
       maxIterations, 1, seed, clearConfs, useRandomCoords, boxSizeMult,
-      randNegEig, numZeroFail, coordMap,useTemplate,flexibility, optimizerForceTol,
+      randNegEig, numZeroFail, coordMap, optimizerForceTol,
       ignoreSmoothingFailures, enforceChirality, useExpTorsionAnglePrefs,
       useBasicKnowledge, verbose, basinThresh, -1.0, onlyHeavyAtomsForRMS,
       ETversion, nullptr, true, useSmallRingTorsions, useMacrocycleTorsions,
@@ -377,8 +367,7 @@ inline int EmbedMolecule(
                    points in \c coordMap. Because the embedding produces a
                    molecule in an arbitrary reference frame, an alignment step
                    is required to actually reproduce the provided coordinates.
-  \param useTemplate  use a template molecule to set up the bounds matrix for constrained molecules
-  \param flexibility  set difference between bounds when using template                 
+  \param useTemplate use a template molecule for caged substructures               
   \param optimizerForceTol set the tolerance on forces in the DGeom optimizer
                            (this shouldn't normally be altered in client code).
   \param ignoreSmoothingFailures  try to embed the molecule even if triangle
@@ -400,7 +389,6 @@ inline int EmbedMolecule(
   conformer sampling \param useMacrocycle14config  If 1-4 distances bound
   heuristics for macrocycles is used
 
-
 */
 inline void EmbedMultipleConfs(
     ROMol &mol, INT_VECT &res, unsigned int numConfs = 10, int numThreads = 1,
@@ -409,7 +397,6 @@ inline void EmbedMultipleConfs(
     bool randNegEig = true, unsigned int numZeroFail = 1,
     double pruneRmsThresh = -1.0,
     const std::map<int, RDGeom::Point3D> *coordMap = nullptr,
-    bool useTemplate = false, double flexibility = 0.0,
     double optimizerForceTol = 1e-3, bool ignoreSmoothingFailures = false,
     bool enforceChirality = true, bool useExpTorsionAnglePrefs = false,
     bool useBasicKnowledge = false, bool verbose = false,
@@ -418,7 +405,7 @@ inline void EmbedMultipleConfs(
     bool useMacrocycleTorsions = false, bool useMacrocycle14config = false) {
   EmbedParameters params(
       maxIterations, numThreads, seed, clearConfs, useRandomCoords, boxSizeMult,
-      randNegEig, numZeroFail, coordMap,  useTemplate, flexibility,optimizerForceTol,
+      randNegEig, numZeroFail, coordMap, optimizerForceTol,
       ignoreSmoothingFailures, enforceChirality, useExpTorsionAnglePrefs,
       useBasicKnowledge, verbose, basinThresh, pruneRmsThresh,
       onlyHeavyAtomsForRMS, ETversion, nullptr, true, useSmallRingTorsions,
@@ -432,7 +419,6 @@ inline INT_VECT EmbedMultipleConfs(
     double boxSizeMult = 2.0, bool randNegEig = true,
     unsigned int numZeroFail = 1, double pruneRmsThresh = -1.0,
     const std::map<int, RDGeom::Point3D> *coordMap = nullptr,
-    bool useTemplate = false, double flexibility = 0.0,
     double optimizerForceTol = 1e-3, bool ignoreSmoothingFailures = false,
     bool enforceChirality = true, bool useExpTorsionAnglePrefs = false,
     bool useBasicKnowledge = false, bool verbose = false,
@@ -441,7 +427,7 @@ inline INT_VECT EmbedMultipleConfs(
     bool useMacrocycleTorsions = false, bool useMacrocycle14config = false) {
   EmbedParameters params(
       maxIterations, 1, seed, clearConfs, useRandomCoords, boxSizeMult,
-      randNegEig, numZeroFail, coordMap, useTemplate, flexibility,optimizerForceTol,
+      randNegEig, numZeroFail, coordMap,optimizerForceTol,
       ignoreSmoothingFailures, enforceChirality, useExpTorsionAnglePrefs,
       useBasicKnowledge, verbose, basinThresh, pruneRmsThresh,
       onlyHeavyAtomsForRMS, ETversion, nullptr, true, useSmallRingTorsions,
@@ -465,8 +451,6 @@ RDKIT_DISTGEOMHELPERS_EXPORT extern const EmbedParameters ETKDGv3;
 //! Parameters corresponding improved ETKDG by Wang, Witek, Landrum and Riniker
 //! (10.1021/acs.jcim.0c00025) - the small ring part
 RDKIT_DISTGEOMHELPERS_EXPORT extern const EmbedParameters srETKDGv3;
-//! new implementation
-RDKIT_DISTGEOMHELPERS_EXPORT extern const EmbedParameters ETKDGv4;
 }  // namespace DGeomHelpers
 }  // namespace RDKit
 

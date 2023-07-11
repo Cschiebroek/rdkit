@@ -396,7 +396,7 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
        python::arg("ETversion") = 1),
       docString.c_str());
 
-  docString =
+std::string docString =
       "Use distance geometry to obtain multiple sets of \n\
  coordinates for a molecule\n\
  \n\
@@ -430,7 +430,7 @@ BOOST_PYTHON_MODULE(rdDistGeom) {
                     least pruneRmsThresh away from all retained conformations\n\
                     are kept. The pruning is done after embedding and \n\
                     bounds violation minimization. No pruning by default.\n\
-  - useTemplate : use template for constrained substructures. \n\
+  - useTemplate : use template for constrained substructures. \n\692793
   - coordMap : a dictionary mapping atom IDs->coordinates. Use this to \n\
                require some atoms to have fixed coordinates in the resulting \n\
                conformation.\n\
